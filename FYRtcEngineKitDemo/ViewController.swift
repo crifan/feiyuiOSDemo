@@ -19,13 +19,21 @@ class ViewController: UIViewController, UITextFieldDelegate, FYRtcEngineKitDeleg
     let SpeakerButtonTag = 3
     let CallButtonTag = 4
     let MuteButtonTag = 5
-    
+
+    let PstnCalleeTextFieldTag = 6
+    let PstnDisplayTextFieldTag = 7
+    let CallPstnButtonTag = 8
+
     var selfTextField:UITextField!
     var otherTextField:UITextField!
     var speakerButton:UIButton!
     var callButton:UIButton!
     var muteButton:UIButton!
-    
+
+    var pstnCalleePhoneTextField:UITextField!
+    var pstnDisplayPhoneTextField:UITextField!
+    var callPstnButton:UIButton!
+
     var isCalling = false
     
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
@@ -62,6 +70,19 @@ class ViewController: UIViewController, UITextFieldDelegate, FYRtcEngineKitDeleg
         self.muteButton = self.view.viewWithTag(MuteButtonTag) as! UIButton
         self.muteButton.setImage(UIImage(named: "mute_normal"), for: UIControlState.normal)
         self.muteButton.setImage(UIImage(named: "mute_pressed"), for: UIControlState.selected)
+        
+        self.pstnCalleePhoneTextField  = self.view.viewWithTag(PstnCalleeTextFieldTag) as! UITextField
+        self.pstnCalleePhoneTextField.delegate = self
+        self.pstnCalleePhoneTextField.returnKeyType = .done
+        
+        self.pstnDisplayPhoneTextField  = self.view.viewWithTag(PstnDisplayTextFieldTag) as! UITextField
+        self.pstnDisplayPhoneTextField.delegate = self
+        self.pstnDisplayPhoneTextField.returnKeyType = .done
+        
+        self.callPstnButton = self.view.viewWithTag(CallPstnButtonTag) as! UIButton
+        self.callPstnButton.addTarget(self, action: #selector(self.callPstnBtnPressed), for: UIControlEvents.touchUpInside)
+        self.callPstnButton.setImage(UIImage(named: "call_pstn_normal"), for: UIControlState.normal)
+        self.callPstnButton.setImage(UIImage(named: "call_pstn_pressed"), for: UIControlState.selected)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -142,6 +163,26 @@ class ViewController: UIViewController, UITextFieldDelegate, FYRtcEngineKitDeleg
      * 自定义函数
      ****************************************************************/
     
+    func callPstnBtnPressed(callPstnBtn:UIButton) {
+        if (callPstnBtn.isSelected) {
+            fyRtcEngine.endCall(self.endPstnCallCallback)
+            self.infoNotice("挂断PSTN通话")
+        } else {
+            let pstnCalleePhone = self.pstnCalleePhoneTextField.text!
+            let pstnDisplayPhone = self.pstnDisplayPhoneTextField.text!
+            let selfUid = self.selfTextField.text!
+            let dialPstnOption:FYOptionData = FYOptionData()
+            dialPstnOption.isRecord = true
+            // 当前通话最长所允许的时间，单位：秒
+            // 此处设置较短的时间，因为默认只有10分钟供测试，要省着点用
+            dialPstnOption.maxDuration = 20
+            fyRtcEngine.dialPstn(pstnCalleePhone, callerUid: selfUid, display: pstnDisplayPhone, optionData: dialPstnOption)
+            self.infoNotice("调用dialPstn：拨打\(pstnCalleePhone)")
+        }
+
+        callPstnBtn.isSelected = !callPstnBtn.isSelected
+    }
+    
     func updateCallButtonImage(){
         dispatchMain_sync{
             if (self.isCalling) {
@@ -169,6 +210,10 @@ class ViewController: UIViewController, UITextFieldDelegate, FYRtcEngineKitDeleg
         self.afterCallEnd()
     }
     
+    func endPstnCallCallback(status:FYRtcEngineStatus?) {
+        self.infoNotice("挂断PSTN回调: \(statusToShortStr(fyStatus: status))")
+    }
+
     func afterCallEnd(){
         self.isCalling = false
         self.updateCallButtonImage()

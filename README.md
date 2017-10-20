@@ -2,14 +2,18 @@
 飞语云平台iOS点对点通话录音Demo
 此Demo用于演示，使用飞语SDK实现，点对点的，A呼叫B，的语音通话的演示。
 
-内部是通过飞语的SDK包`FYRtcEngineKit`，发起`UDP`的数据包，实现了`VOIP`的语音通信。
+内部是通过[飞语官网](https://www.feiyucloud.com)的SDK包`FYRtcEngineKit`，发起`UDP`的数据包，实现了`VOIP`的语音通信。
 
-前提：主叫A和被叫B的手机均已正常联网
+本demo项目是基于官网的[iOS库+Demo](http://cdn.feiyucloud.com/objective-c-3.0.0.zip)
+
+
+
 
 # 代码逻辑
 > 核心代码均在`ViewController.swift`
 
-点对点的语音呼叫通话，且带录音的基本流程：
+## 点对点 网络对网络 且带录音的基本流程
+> 前提：主叫A和被叫B的手机均已正常联网
 
 1.主叫和被叫都调用SDK初始化`sharedEngine`
 ```swift
@@ -57,8 +61,47 @@ fyRtcEngine.endCall(self.endCallCallback)
     }
 ```
 
+## 点对点 网络对手机（PSTN） 且带录音的基本流程
+> 前提：主叫A的手机已正常联网
+
+其实和`点对点 网络对网络`的流程是一样的，只不过是被叫方**不需要网络**，当前也就不需要`calleePrepare`等动作了。就相当于别人直接拨打你电话而已。
+
+1.主叫方调用SDK初始化`sharedEngine`
+```swift
+fyRtcEngine = FYRtcEngineKit.sharedEngine(withAppId: FY_APPID, appToken: FY_APPTOKEN, delegate: self)
+```
+
+2.主叫方调用`dialPstn`
+```swift
+fyRtcEngine.dialPstn(pstnCalleePhone, callerUid: selfUid, display: pstnDisplayPhone, optionData: dialPstnOption)
+```
+
+主叫会收到`outgoingCall`的回调，表示正在拨号出去。
+
+参数解释：
+- pstnCalleePhone: 被叫的手机号，比如+18613812345678
+- display: pstnDisplayPhone：被叫在接到电话的界面中显示什么号码
+
+> 提示：
+> - 被叫手机号和显示号必须是符号`PSTN E164`标准的正常的+86开头的国内的手机号，否则会报错，比如
+>    - `10086`：提示格式不合法
+>    - `+8610086`：提示无权限使用此号
+
+3.被叫方就可以正常接收到并接听电话了
+
+几点说明：
+- 不过是有点延迟，大概要等个10秒前后，被叫方才收到打入的电话
+- 被叫方如果选择接电话，就可以正常通话了
+    - 此时，主叫方可以收到`onFYRtcEngineCallConnect`的回调
+- 主叫方每隔2秒会收到`reportRtcStats`的语音统计信息
+
+4.想要挂掉，则调用`endCall`结束通话
+```swift
+fyRtcEngine.endCall(self.endPstnCallCallback)
+```
+
 ## 代码说明
-1. 如果你想要调试你自己的app，则需要去[飞语官网](https://www.feiyucloud.com)注册自己的app，获得`APPID`和`APPTOKEN`，替换`ViewController.swift`中的`FY_APPID`和`FY_APPTOKEN`
+1. 如果你想要调试你自己的app，则需要去[飞语官网](https://www.feiyucloud.com)注册账号，创建自己的app，获得`APPID`和`APPTOKEN`，替换`ViewController.swift`中的`FY_APPID`和`FY_APPTOKEN`
 2. 相关文档：
     - [FeiyuCloud/objc-sdk-demo: Feiyu Cloud Objective-C SDK Demo](https://github.com/FeiyuCloud/objc-sdk-demo)
     - [点到点语音 · DOCS](https://feiyucloud.gitbooks.io/docs/content/test/dian-dao-dian-yu-yin.html#点到点语音相关delegate-方法fyrtcenginekitdelegate)
